@@ -1,0 +1,11 @@
+{
+  "additionalFiles": "../../..,../../..,../../..",
+  "builtInToolsFolders": "",
+  "compiler.optimization_flags": "",
+  "customBuildProperties": "",
+  "fqbn": "arduino:avr:uno",
+  "hardwareFolders": "/home/kamil/.arduino15/packages",
+  "otherLibrariesFolders": "/home/kamil/Arduino/libraries",
+  "runtime.ide.version": "10607",
+  "sketchLocation": "/home/kamil/Projects/Podlewanie"
+}

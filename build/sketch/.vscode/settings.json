@@ -1,0 +1,7 @@
+#line 1 "/home/kamil/Projects/Podlewanie/.vscode/settings.json"
+{
+  "files.associations": {
+    "vector": "cpp",
+    "valarray": "cpp"
+  }
+}
