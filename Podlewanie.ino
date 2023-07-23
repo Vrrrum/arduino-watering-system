@@ -7,30 +7,19 @@ using namespace std;
 #define DEFAULT_WORK_TIME 2000
 #define DEFAULT_TRANSITION_TIME 1000
 
-class Section {
-  protected:
+class TimerSection {
+  private:
     bool state = false;
     bool isActive = false;
     uint8_t pin;
     uint8_t button;
-  public:
-    Section(uint8_t ledPin, uint8_t btn) {
-      pin = ledPin;
-      button = btn;
-    }
 
-    void setState(bool newState) {
-      state = newState;
-    }
-    bool getState() {
-      return state;
-    }
-    void setPin(uint8_t newPin) {
-      pin = newPin;
-    }
-    uint8_t getPin() {
-      return pin;
-    }
+    uint16_t savedWorkTime = 0;
+    uint16_t savedTransitionTime = 0;
+    uint16_t workTime;
+    uint16_t transitionTime;
+
+    TimerSection* nextSection = NULL;
 
     void on() {
       digitalWrite(pin, HIGH);
@@ -38,12 +27,22 @@ class Section {
     void off() {
       digitalWrite(pin, LOW);
     }
-    void startSection() {
-      on();
+  public:
+    TimerSection(uint8_t ledPin, uint8_t btn, uint16_t wt, uint16_t tt) {
+      pin = ledPin;
+      button = btn;
+      workTime = wt;
+      transitionTime = tt;
     }
-    void stopSection(){
-      off();
+
+    bool getState() {
+      return state;
     }
+
+    void setNextSection(TimerSection &next) {
+      nextSection = &next;
+    }
+
     void updateState() {
       printf("state: %d - %d", button, digitalRead(button));
       if(digitalRead(button) == LOW)
@@ -51,21 +50,6 @@ class Section {
       else
         state = false;
     }
-};
-
-class TimerSection: public Section {
-  private:
-    uint16_t savedWorkTime = 0;
-    uint16_t savedTransitionTime = 0;
-    uint16_t workTime;
-    uint16_t transitionTime;
-  public:
-    TimerSection(uint8_t ledPin, uint8_t btn, uint16_t wt, uint16_t tt) : Section(ledPin, btn) {
-      pin = ledPin;
-      workTime = wt;
-      transitionTime = tt;
-    }
-
     void startSection() {
       savedWorkTime = millis();
       isActive = true;
@@ -80,34 +64,47 @@ class TimerSection: public Section {
     void transition(TimerSection &nextSection) {
       savedTransitionTime = millis();
       while(millis() - savedTransitionTime < transitionTime) {
-        on();
+        on(); 
         nextSection.on();
       }
       stopSection();
     }
-    void sectionLoop(TimerSection &nextSection, uint8_t &pos) {
+    // void sectionLoop(TimerSection &nextSection) {
+    //   if(!isActive) {
+    //     savedWorkTime = millis();
+    //     isActive = true;
+    //   }
+    //   if(millis() - savedWorkTime > workTime || (isActive && !state)) {
+    //     transition(nextSection);
+    //   } else {
+    //     on();
+    //   }
+    // }
+    // void sectionLoop(bool &relay) {
+    //   if(!isActive) {
+    //     savedWorkTime = millis();
+    //     isActive = true;
+    //   }
+    //   if(millis() - savedWorkTime < workTime) {
+    //     on();
+    //   } else {
+    //     stopSection();
+    //     end(relay);
+    //   }
+    // }
+
+    void sectionLoop(bool &relay) {
       if(!isActive) {
         savedWorkTime = millis();
         isActive = true;
       }
       if(millis() - savedWorkTime > workTime || (isActive && !state)) {
-        transition(nextSection);
-        pos++;
+        if(nextSection == NULL){
+          end(relay);
+        }
+        transition(*nextSection);
       } else {
         on();
-      }
-    }
-    void sectionLoop(uint8_t &pos, bool &relay) {
-      if(!isActive) {
-        savedWorkTime = millis();
-        isActive = true;
-      }
-      if(millis() - savedWorkTime < workTime) {
-        on();
-      } else {
-        stopSection();
-        end(relay);
-        pos = 0;
       }
     }
     void end(bool &relay) {
@@ -115,8 +112,7 @@ class TimerSection: public Section {
     }
 };
 
-void checkStates(vector<TimerSection> &sections, Section kropleSzopa);
-void loopButtons(vector<TimerSection> &sections, Section kropleSzopa ,ezButton &rainMeter);
+void checkStates(vector<TimerSection> &sections);
 
 TimerSection kropleSzopa(10, 1, DEFAULT_WORK_TIME, DEFAULT_TRANSITION_TIME);
 TimerSection skalniak(3, A0, DEFAULT_WORK_TIME, DEFAULT_TRANSITION_TIME);
@@ -160,28 +156,40 @@ void setup()
 
   Serial.println("Start");
   
+  for(int i = 0; i < wateringSystem.size()-1; i++) {
+    wateringSystem.at(i).setNextSection(wateringSystem.at(i+1));
+  }
 }
-
-void loop()
+  
+int i = 0;
+void loop() 
 {
   digitalWrite(13, relayStatus);
-  // loopButtons(wateringSystem, kropleSzopa, btn_czujnikOpadow);
-  checkStates(wateringSystem, kropleSzopa);
+  checkStates(wateringSystem);
+
+  int next = 1;
 
   if(digitalRead(12) == LOW) {
-      if(wateringSystem.size() > position + 1) {
-        wateringSystem.at(position).sectionLoop(wateringSystem.at(position+1), position);
-      }
-      else {
-        wateringSystem.at(position).sectionLoop(position, relayStatus);
-      }
+      // if(wateringSystem.size() > position + 1) {
+      //   wateringSystem.at(position).sectionLoop(wateringSystem.at(position+1), position);
+      // }
+      // else {
+      //   wateringSystem.at(position).sectionLoop(position, relayStatus);
+      // }
+
+      // while(i <= wateringSystem.size()) {
+      //   while(wateringSystem[i+next].getState() == false) {
+      //     next++;
+      //   }
+      //   i+=next;
+      // }
+      wateringSystem.at(i).sectionLoop(relayStatus);
   }
 }
 
-void checkStates(vector<TimerSection> &sections, Section kropleSzopa) {
+void checkStates(vector<TimerSection> &sections) {
   for(TimerSection &section : sections) {
     section.updateState();
-    // printf("state: %d ", section.getState());
   }
   kropleSzopa.updateState();
 }
