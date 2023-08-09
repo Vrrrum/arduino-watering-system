@@ -2,29 +2,25 @@
 // Podlewanie - 10.07.2023
 # 3 "/home/kamil/Projects/Podlewanie/Podlewanie.ino" 2
 # 4 "/home/kamil/Projects/Podlewanie/Podlewanie.ino" 2
+// #include "section.h"
 
 using namespace std;
 
 
 
 
-class TimerSection {
+class Section {
   private:
     bool state = false;
     bool isActive = false;
+    bool worksAtRain = false;
     uint8_t pin;
     uint8_t button;
 
-    uint16_t savedWorkTime = 0;
-    uint16_t savedTransitionTime = 0;
-    uint16_t workTime;
-    uint16_t transitionTime;
-
-    TimerSection* nextSection = 
-# 22 "/home/kamil/Projects/Podlewanie/Podlewanie.ino" 3 4
-                               __null
-# 22 "/home/kamil/Projects/Podlewanie/Podlewanie.ino"
-                                   ;
+    uint32_t savedWorkTime = 0;
+    uint32_t savedTransitionTime = 0;
+    uint32_t workTime;
+    uint32_t transitionTime;
 
     void on() {
       digitalWrite(pin, 0x1);
@@ -33,23 +29,23 @@ class TimerSection {
       digitalWrite(pin, 0x0);
     }
   public:
-    TimerSection(uint8_t ledPin, uint8_t btn, uint16_t wt, uint16_t tt) {
+    Section(uint8_t ledPin, uint8_t btn, uint32_t wt, uint32_t tt, bool wat = false) {
       pin = ledPin;
       button = btn;
       workTime = wt;
       transitionTime = tt;
+      worksAtRain = wat;
     }
 
     bool getState() {
       return state;
     }
-
-    void setNextSection(TimerSection &next) {
-      nextSection = &next;
+    void setWorksAtRain(bool value) {
+      worksAtRain = value;
     }
 
     void updateState() {
-      printf("state: %d - %d", button, digitalRead(button));
+      // printf("state: %d - %d", button, digitalRead(button));
       if(digitalRead(button) == 0x0)
         state = true;
       else
@@ -66,7 +62,7 @@ class TimerSection {
       isActive = false;
       off();
     }
-    void transition(TimerSection &nextSection) {
+    void transition(Section &nextSection) {
       savedTransitionTime = millis();
       while(millis() - savedTransitionTime < transitionTime) {
         on();
@@ -74,46 +70,30 @@ class TimerSection {
       }
       stopSection();
     }
-    // void sectionLoop(TimerSection &nextSection) {
-    //   if(!isActive) {
-    //     savedWorkTime = millis();
-    //     isActive = true;
-    //   }
-    //   if(millis() - savedWorkTime > workTime || (isActive && !state)) {
-    //     transition(nextSection);
-    //   } else {
-    //     on();
-    //   }
-    // }
-    // void sectionLoop(bool &relay) {
-    //   if(!isActive) {
-    //     savedWorkTime = millis();
-    //     isActive = true;
-    //   }
-    //   if(millis() - savedWorkTime < workTime) {
-    //     on();
-    //   } else {
-    //     stopSection();
-    //     end(relay);
-    //   }
-    // }
-
+    void sectionLoop(Section *nextSection, uint8_t &pos) {
+      if(!isActive) {
+        savedWorkTime = millis();
+        printf("savedWorkTime: %d", savedWorkTime);
+        isActive = true;
+      }
+      if(millis() - savedWorkTime > workTime || (isActive && !state)) {
+        pos++;
+        if(nextSection->getState())
+          transition(*nextSection);
+      } else {
+        on();
+      }
+    }
     void sectionLoop(bool &relay) {
       if(!isActive) {
         savedWorkTime = millis();
         isActive = true;
       }
-      if(millis() - savedWorkTime > workTime || (isActive && !state)) {
-        if(nextSection == 
-# 102 "/home/kamil/Projects/Podlewanie/Podlewanie.ino" 3 4
-                         __null
-# 102 "/home/kamil/Projects/Podlewanie/Podlewanie.ino"
-                             ){
-          end(relay);
-        }
-        transition(*nextSection);
-      } else {
+      if(millis() - savedWorkTime < workTime) {
         on();
+      } else {
+        stopSection();
+        end(relay);
       }
     }
     void end(bool &relay) {
@@ -121,22 +101,25 @@ class TimerSection {
     }
 };
 
-void checkStates(vector<TimerSection> &sections);
+void checkStates(vector<Section> &sections);
+void updatePool(vector<Section> &sections, vector<Section*> &ap);
+void end(bool &relay);
 
-TimerSection kropleSzopa(10, 1, 2000, 1000);
-TimerSection skalniak(3, A0, 2000, 1000);
-TimerSection trawaZachod(4, A1, 2000, 1000);
-TimerSection trawaSrodek(5, A2, 2000, 1000);
-TimerSection trawaWschod(6, A3, 2000, 1000);
-TimerSection trawaPrzodWschod(7, A4, 2000, 1000);
-TimerSection trawaPrzodZachod(8, A5, 2000, 1000);
-TimerSection rabatkaPrzod(9, 0, 2000, 1000);
-TimerSection skwerBronka(11, 2, 2000, 1000);
+Section kropleSzopa(10, 1, 1000, 1000);
+Section skalniak(3, A0, 1000, 1000, true);
+Section trawaZachod(4, A1, 1000, 1000);
+Section trawaSrodek(5, A2, 1000, 1000);
+Section trawaWschod(6, A3, 1000, 1000);
+Section trawaPrzodWschod(7, A4, 1000, 1000);
+Section trawaPrzodZachod(8, A5, 1000, 1000);
+Section rabatkaPrzod(9, 0, 1000, 1000);
+Section skwerBronka(11, 2, 1000, 1000);
 
-vector<TimerSection> wateringSystem{skalniak, trawaZachod, trawaSrodek, trawaWschod, trawaPrzodWschod, trawaPrzodZachod, rabatkaPrzod, kropleSzopa, skwerBronka};
+vector<Section> wateringSystem{skalniak, trawaZachod, trawaSrodek, trawaWschod, trawaPrzodWschod, trawaPrzodZachod, rabatkaPrzod, kropleSzopa, skwerBronka};
+vector<Section*> activePool;
 
-uint8_t position = 0;
 bool relayStatus = 0x1;
+uint8_t position = 0;
 
 void setup()
 {
@@ -163,42 +146,45 @@ void setup()
   pinMode(11, 0x1); // rabata sekcja 2 (skwer Bronka)
   pinMode(12, 0x2); // czujnik opadów
 
-  Serial.println("Start");
+  updatePool(wateringSystem, activePool);
 
-  for(int i = 0; i < wateringSystem.size()-1; i++) {
-    wateringSystem.at(i).setNextSection(wateringSystem.at(i+1));
-  }
+  Serial.println("Start");
+  digitalWrite(13, relayStatus);
+  delay(3000);
 }
 
-int i = 0;
 void loop()
 {
   digitalWrite(13, relayStatus);
   checkStates(wateringSystem);
 
-  int next = 1;
+  if(digitalRead(12) == 0x1) {
+    end(relayStatus);
+  }
 
-  if(digitalRead(12) == 0x0) {
-      // if(wateringSystem.size() > position + 1) {
-      //   wateringSystem.at(position).sectionLoop(wateringSystem.at(position+1), position);
-      // }
-      // else {
-      //   wateringSystem.at(position).sectionLoop(position, relayStatus);
-      // }
-
-      // while(i <= wateringSystem.size()) {
-      //   while(wateringSystem[i+next].getState() == false) {
-      //     next++;
-      //   }
-      //   i+=next;
-      // }
-      wateringSystem.at(i).sectionLoop(relayStatus);
+  if(position == activePool.size()-1) {
+    activePool.at(position)->sectionLoop(relayStatus);
+  } else {
+    activePool.at(position)->sectionLoop(activePool.at(position+1), position);
   }
 }
 
-void checkStates(vector<TimerSection> &sections) {
-  for(TimerSection &section : sections) {
+void checkStates(vector<Section> &sections) {
+  for(Section &section : sections) {
     section.updateState();
   }
-  kropleSzopa.updateState();
+}
+
+void updatePool(vector<Section> &sections, vector<Section*> &ap) {
+  ap.clear();
+  for(Section &section : sections) {
+    section.updateState();
+    if(section.getState()){
+      ap.push_back(&section);
+    }
+  }
+}
+
+void end(bool &relay) {
+  relay = 0x0;
 }

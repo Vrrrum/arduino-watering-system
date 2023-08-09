@@ -4,6 +4,9 @@
     "valarray": "cpp",
     "functional": "cpp",
     "iterator": "cpp",
-    "type_traits": "cpp"
+    "type_traits": "cpp",
+    "associative_base": "cpp",
+    "queue": "cpp",
+    "stack": "cpp"
   }
 }
